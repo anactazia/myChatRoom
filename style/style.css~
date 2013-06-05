@@ -1,0 +1,114 @@
+div.output 	{
+		height:400px;
+		width:700px;
+		background-color:#fff;
+		border:1px solid #aaa;
+		overflow-y: scroll;
+		overflow-x: hidden;
+		font-size:smaller;
+		}
+
+div #users 	{
+		float:right;
+		width: 200px;
+		}
+
+
+#overlay 	{
+    		position: fixed;
+    		top: 0px;
+    		left: 0px;
+    		z-index: 998;
+    		background-color: #fff;
+    		height: 100%;
+    		width: 100%;
+    		}
+
+#lightbox 	{
+    		z-index: 999;
+    		border: 1px solid black;
+    		padding: 20px;
+    		box-shadow: #808080 5px 5px 5px;
+    		width: 400px;
+    		height: 100px;
+    		top: 100px;
+    		margin:auto;
+    		position:relative;
+    		background-repeat: no-repeat no-repeat;
+    		background-position: 50% 95%;
+    		background-color: #B2D9AB;
+    		text-align: center;
+
+    		}
+    		
+.welcome	{
+		font-family: 'Amaranth', sans-serif;
+    		font-size:2em;
+    		margin-bottom:5px;
+    		margin-top:-5px;
+		}
+		
+#nick_		{
+		height: 25px;
+		width:250px;
+		font-size:1.3em;
+		border: 5px groove green;
+		}
+		
+#connect_	{
+		height:35px;
+		font-size:1.3em;
+		margin-left:5px;
+		margin-top:5px;
+		}
+		
+#status_	{
+		font-size:1em;
+		text-transform:uppercase;
+		color:green;
+		font-family:Arial;
+		margin-top:10px;
+		}		
+
+#message 	{
+    		width:700px;
+    		}
+
+.close 		{
+  		float: right;
+  		font-size: 20px;
+  		font-weight: bold;
+  		line-height: 20px;
+  		color: #000000;
+  		text-shadow: 0 1px 0 #ffffff;
+  		opacity: 0.2;
+  		}
+
+.close:hover,
+.close:focus 	{
+  		color: #000000;
+  		text-decoration: none;
+  		cursor: pointer;
+  		opacity: 0.4;
+  		}
+
+button.close 	{
+  		padding: 0;
+  		cursor: pointer;
+  		background: transparent;
+  		border: 0;
+  		}
+
+.activeli 	{
+   	 	background-color:lightgrey
+   	 	}
+
+#pm 		{
+		display:none;
+		}
+		
+ul 		{
+		list-style-type: none;
+		} 
+		
+

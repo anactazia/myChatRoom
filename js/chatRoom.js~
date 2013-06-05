@@ -1,0 +1,86 @@
+/**
+ * A websocket client.
+ */
+$(document).ready(function(){
+  'use strict';
+
+  var url = 'ws://dbwebb.se:1337/',
+    websocket = null,
+    form = $('#form1'),
+    output = $('#output');
+
+  // Display the url in form field for the user to change
+  $('#connect_url').val(url);
+
+  
+
+  // Event handler to create the websocket connection
+  $('#connect').on('click', function(event) {
+    url = $('#connect_url').val();
+    console.log('Connecting to: ' + url);
+    if(websocket) {
+      websocket.close();
+      websocket = null;
+    }
+    websocket = new WebSocket(url, 'broadcast-protocol');
+
+    websocket.onopen = function() {
+      console.log('The websocket is now open.');
+      console.log(websocket);
+      var name = $('#name').val();
+      websocket.send(name + ' has entered the Chatroom!')
+      outputLog('<span class="chatwelcome">Welcome to the Chatroom ' + name + '!</span>');
+      
+    }
+
+    websocket.onmessage = function(event) {
+      console.log('Receiving message: ' + event.data);
+      console.log(event);
+      console.log(websocket);
+      outputLog(event.data);
+    }
+
+    websocket.onclose = function() {
+      console.log('The websocket is now closed.');
+      console.log(websocket);
+      outputLog('<span class="chatdisconnected">You have left the Chatroom! Goodbye!</span>');
+      //websocket = null;
+    }
+  });
+
+
+  // Add the message to the log
+  function outputLog(message) {
+    var now = new Date();
+    
+    $(output).append(now.toLocaleTimeString() + ' ' + message + '<br/>').scrollTop(output[0].scrollHeight);
+    
+  }
+
+
+  // Send a message to the server
+  $('#send_message').on('click', function(event) {
+    var msg = $('#message').val();
+    var name = $('#name').val();
+    
+    if(!websocket || websocket.readyState === 3) {
+      console.log('The websocket is not connected to a server.');
+    } else {
+      websocket.send(name + ' says: ' + msg);  
+      $('#message').val('');
+    }
+  });
+  
+    
+  // Close the connection to the server
+  $('#close').on('click', function() {
+    var name = $('#name').val();
+    console.log('Closing websocket.');
+    websocket.send(name + ' has left the Chatroom!');
+    websocket.close();
+    console.log(websocket);
+  });
+
+
+  console.log('Everything is ready.'); 
+});

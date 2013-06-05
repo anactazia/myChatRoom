@@ -1,0 +1,235 @@
+var port = 8004;
+var broadcastTo = [];
+
+// Require the modules we need
+var WebSocketServer = require('/home/saxon/teachers/com/mosstud/www/node/node_modules/websocket').server;
+var http = require('http');
+
+/**
+ * Create a http server with a callback for each request
+ */
+var httpServer = http.createServer(function(request, response) {
+
+
+    if (request.url === '/favicon.ico') {
+        response.writeHead(200, {'Content-Type': 'image/x-icon'});
+        response.end();
+        //console.log('favicon requested');
+    } else {
+        console.log((new Date()) + ' Received request for ' + request.url);
+        if (request.url === "/nick") {
+            var nicks = {}, nr;
+            response.writeHead(200, {'Content-type': 'application/json', 'Access-Control-Allow-Origin': '*'});
+            for (nr in broadcastTo) {
+                //console.log(nr);
+                if (broadcastTo[nr]) {
+                    if (typeof broadcastTo[nr].nick === "string") {
+                        nicks[nr] = broadcastTo[nr].nick || "anonymus";
+                    }
+                }
+            }
+            response.end(JSON.stringify(nicks));
+        } else {
+            response.writeHead(200, {'Content-type': 'text/plain'});
+            response.end('404');
+        }
+    }
+
+}).listen(port, function() {
+    console.log((new Date()) + ' HTTP server is listening on port ' + port);
+});
+/**
+ * Create an object for the websocket
+ */
+var wsServer = new WebSocketServer({
+    httpServer: httpServer,
+    autoAcceptConnections: false
+});
+/**
+ * avoid injections
+ */
+function htmlEntities(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+/**
+ * Take an json and send it to user if connected
+ */
+function sendJsonToOne(to, obj, ovr) {
+    var overide = ovr || false, init;
+    if (broadcastTo[to]) {
+        init = broadcastTo[to].init || overide;
+        if (init) {
+            broadcastTo[to].sendUTF(JSON.stringify(obj));
+            console.log('Json sent to: ' + to);
+        }
+    }
+
+}
+/**
+ * Shorthandmethod for sending to all
+ */
+function sendToAll(nick, msg, from) {
+    var obj, i;
+    for (i = 0; i < broadcastTo.length; i++) {
+        if (broadcastTo[i]) {
+            obj = {senderid: from, sendernick: nick, msg: htmlEntities(msg)};
+            sendJsonToOne(i, obj);
+        }
+    }
+}
+/**
+ * shorthand method for sending server message to all
+ */
+function sendServerToAll(msg) {
+    var clients = 0, obj, i;
+    for (i = 0; i < broadcastTo.length; i++) {
+        if (broadcastTo[i]) {
+            clients++;
+            obj = {server: msg};
+            sendJsonToOne(i, obj);
+
+        }
+    }
+    console.log('Broadcasted message to ' + clients + ' clients: ' + msg);
+}
+/**
+ * Function to send pm
+ */
+function sendToOne(nick, msg, from, to) {
+    var obj;
+    obj = {senderid: from, sendernick: nick, msg: htmlEntities(msg), pm: true};
+    sendJsonToOne(to, obj);
+
+    if (broadcastTo[to]) {
+        nick = broadcastTo[to].nick || "";
+    }
+
+    obj = {retriverid: to, retrivernick: nick, msg: htmlEntities(msg), pm: true};
+    sendJsonToOne(from, obj);
+
+    console.log('Broadcasted pm message to ' + to + ', ' + msg);
+}
+/*
+ * Sends a json to all connections
+ */
+function sendJsonToAll(obj) {
+    var i;
+    for (i = 0; i < broadcastTo.length; i++) {
+        if (broadcastTo[i]) {
+            sendJsonToOne(i, obj);
+        }
+    }
+}
+/**
+ * Always check and explicitly allow the origin
+ */
+function originIsAllowed(origin) {
+    if ((origin === 'http://dbwebb.se') || (origin === 'http://localhost') || (origin === "http://www.student.bth.se")) {
+        return true;
+    }
+    return false;
+}
+/**
+ * Accept connection under the broadcast-protocol
+ */
+function acceptConnectionAsBroadcast(request) {
+    var connection = request.accept('broadcast-protocol', request.origin);
+    connection.broadcastId = broadcastTo.push(connection) - 1;
+    console.log((new Date()) + ' Broadcast connection accepted from ' + request.origin + ' id = ' + connection.broadcastId);
+
+    // Callback to handle each message from the client
+    connection.on('message', function(message) {
+
+        //are sender initiated?
+        var init = broadcastTo[connection.broadcastId].init || false, mymsg = message.utf8Data, myarr = mymsg.split("|"), initRequest, i, msg, to, nick, ok, myobj = {};
+        if ((myarr.constructor === Array)) {
+
+            //is array in a way we can understand?
+            if (myarr.shift() === "object") {
+
+                eval("myobj ={" + myarr.join("|") + "}");
+
+                if (typeof myobj === 'object') {
+                    initRequest = myobj.init || false;
+                    if (init && !initRequest) {
+                        msg = myobj.msg || null;
+                        to = myobj.to || null;
+                        if (msg !== null) {
+                            if (to === null) {
+                                sendToAll(broadcastTo[connection.broadcastId].nick, msg, connection.broadcastId);
+                            } else {
+                                sendToOne(broadcastTo[connection.broadcastId].nick, msg, connection.broadcastId, to);
+                            }
+                        }
+                    } else if (initRequest) {
+                        //user not initiated
+                        nick = myobj.nick || null;
+                        ok = true;
+                        if (nick !== null) {
+                            for (i = 0; i < broadcastTo.length; i++) {
+                                if (broadcastTo[i]) {
+                                    if (nick === broadcastTo[i].nick) {
+                                        ok = false;
+                                    }
+                                }
+                            }
+                        } else {
+                            ok = false;
+                        }
+                        if (ok) {
+                            if (init) {
+                                sendServerToAll(broadcastTo[connection.broadcastId].nick + " is known as " + nick);
+                            } else {
+                                sendServerToAll(nick + " är nu med i chatten", true);
+                            }
+                            sendJsonToOne(connection.broadcastId, {init: true, nick: nick}, true);
+                            broadcastTo[connection.broadcastId].init = true;
+                            broadcastTo[connection.broadcastId].nick = nick;
+
+                        } else {
+                            sendJsonToOne(connection.broadcastId, {init: false, nick: nick, reason: "Nickname already in use or empty."}, true);
+                        }
+                    } else {
+                        sendJsonToOne(connection.broadcastId, {init: false, reason: "User not initiated."}, true);
+                    }
+                }
+
+            }
+        }
+    });
+
+    // Callback when client closes the connection
+    connection.on('close', function(reasonCode, description) {
+        console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected broadcastid = ' + connection.broadcastId + '.');
+
+        var nick = broadcastTo[connection.broadcastId].nick || "anonymus";
+        if (description != "") {
+            sendServerToAll(nick + " har lämnat chatten");
+        }
+        broadcastTo[connection.broadcastId] = null;
+
+    });
+
+    return true;
+}
+/**
+ * Create a callback to handle each connection request
+ */
+wsServer.on('request', function(request) {
+    var i;
+
+    if (!originIsAllowed(request.origin)) {
+        // Make sure we only accept requests from an allowed origin
+        request.reject();
+        console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
+        return;
+    }
+
+    // Loop through protocols. Accept by highest order first.
+    for (i = 0; i < request.requestedProtocols.length; i++) {
+        if (request.requestedProtocols[i] === 'broadcast-protocol') {
+            acceptConnectionAsBroadcast(request);
+        }
+    }
+
+}); 
